@@ -1,0 +1,29 @@
+name: Daily Jacksonville Fishing Report
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  post-to-facebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tides, water temp, solunar and post
+        run: |
+          TODAY=$(date +%Y%m%d)
+          
+          TIDES=$(curl -s "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&begin_date=$TODAY&end_date=$TODAY&datum=MLLW&station=8720218&time_zone=lst_ldt&units=english&interval=hilo&format=json")
+          HIGH=$(echo $TIDES | jq -r '.predictions[] | select(.type=="H") | .t + " @ " + .v + "ft" ' | head -1 | cut -d' ' -f2-)
+          LOW=$(echo $TIDES | jq -r '.predictions[] | select(.type=="L") | .t + " @ " + .v + "ft" ' | head -1 | cut -d' ' -f2-)
+          
+          WATER=$(curl -s "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&application=NOS.COOPS.TAC.PHYSOCEAN&station=8720218&date=latest&units=english&time_zone=lst_ldt&format=json")
+          WTEMP=$(echo $WATER | jq -r '.data[0].v + "°F"')
+          
+          SUN_TIMES=$(curl -s "https://api.sunrise-sunset.org/json?lat=30.3322&lng=-81.6557&date=today&formatted=0")
+          SUNRISE=$(echo $SUN_TIMES | jq -r '.results.sunrise' | xargs -I {} date -d {} '+%I:%M %p')
+          
+          MESSAGE="🎣 Jacksonville Fishing Report - $(date +%a\\ %b\\ %d)%0A%0A🌊 Mayport Tides:%0AHigh: $HIGH%0ALow: $LOW%0A%0A🌡️ Water Temp: $WTEMP%0A%0A🐟 Major Feed ~ $SUNRISE%0ABest bite: 1hr before/after tide changes%0A%0AFull report + bait tips: [YOUR LINK HERE]%0A%0A#JacksonvilleFishing #StJohnsRiver #FloridaFishing"
+          
+          curl -X POST "https://graph.facebook.com/v18.0/${{ secrets.FB_PAGE_ID }}/feed" \
+            -d "message=$MESSAGE" \
+            -d "access_token=${{ secrets.FB_PAGE_ACCESS_TOKEN }}"

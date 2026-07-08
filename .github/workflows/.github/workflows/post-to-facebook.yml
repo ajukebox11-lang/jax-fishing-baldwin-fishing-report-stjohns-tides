@@ -1,8 +1,8 @@
-name: Post to Facebook Every 3 Hours
+name: Post to Facebook Every 4 Hours
 
 on:
   schedule:
-    - cron: '0 */3 * * *'
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 jobs:
